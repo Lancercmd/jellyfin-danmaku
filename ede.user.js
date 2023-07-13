@@ -39,7 +39,7 @@
             is: 'paper-icon-button-light',
         };
         const uiAnchorStr = 'pause';
-        // const uiQueryStr = '.osdTimeText';
+        const uiQueryStr = '.osdTimeText';
         const mediaContainerQueryStr = "div[data-type='video-osd']";
         const mediaQueryStr = 'video';
         const displayButtonOpts = {
@@ -244,7 +244,7 @@
             }
             console.log('正在初始化UI');
             // 弹幕按钮容器div
-            var uiEle = null;
+            let uiEle = null;
             document.querySelectorAll(uiQueryStr).forEach(function (element) {
                 if (element.offsetParent != null) {
                     uiEle = element;
@@ -253,14 +253,14 @@
             if (uiEle == null) {
                 return;
             }
-            //let parent = uiAnchor[0].parentNode.parentNode.parentNode;
+            // let parent = uiAnchor[0].parentNode.parentNode;
             let parent = uiEle.parentNode;
             let menubar = document.createElement('div');
             menubar.id = 'danmakuCtr';
             if (!window.ede.episode_info) {
                 menubar.style.opacity = 0.5;
             }
-            //parent.append(menubar);
+            // parent.append(menubar);
             parent.insertBefore(menubar, uiEle);
             // 弹幕开关
             displayButtonOpts.class = danmaku_icons[window.ede.danmakuSwitch];
