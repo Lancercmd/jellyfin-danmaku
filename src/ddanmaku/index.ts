@@ -28,6 +28,10 @@ export class DanDanDanmaku {
         seriesId: null;
         /* 唯一id */
         episodeId: null;
+        /* 系列标题 */
+        seriesTitle?: string;
+        /* 剧集标题 */
+        episodeTitle?: string;
     };
     constructor(win: Window, doc: Document) {
         this.win = win;
@@ -43,11 +47,12 @@ export class DanDanDanmaku {
             filterVWidth: 3,
             filterGLimit: 3,
             filterVLimit: 6,
-            /* 0:当前状态关闭 1:当前状态打开 */
+            /* 0:当前状态关闭 1:当前状态简体 2:当前状态繁体 */
             chConvert: 1,
             enableDanmaku: true,
             /* DOM or canvas */
             danmakuEngine: 'canvas',
+            showLogUI: false,
         };
         if (win.localStorage.getItem(configName)) {
             // 检查是否有旧配置

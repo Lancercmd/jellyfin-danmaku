@@ -1,5 +1,10 @@
 const translate = {
     displayBtnTitle: '弹幕开关',
+    searchBtnTitle: '搜索弹幕',
+    infoBtnTitle: '弹幕信息',
+    settingBtnTitle: '设置',
+    sourceBtnTitle: '手动增加弹幕源',
+    logBtnTitle: '显示日志',
     log: {
         loading: '正在加载,请稍后再试',
         danmakuDownloadS: '弹幕下载成功',

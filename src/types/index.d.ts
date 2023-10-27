@@ -4,6 +4,7 @@ declare global {
     interface Window {
         require: any;
         ddd: DanDanDanmaku;
+        showDebugInfo: Function;
     }
     type ConfigMap = {
         [key: string]: any;
