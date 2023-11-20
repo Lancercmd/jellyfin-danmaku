@@ -599,7 +599,7 @@
                 episodeTitle: animaInfo.animes[selecAnime_id].type == 'tvseries' ? animaInfo.animes[selecAnime_id].episodes[episode].episodeTitle : null,
             };
             window.localStorage.setItem(_episode_key, JSON.stringify(episodeInfo));
-            this.episode_info_str = episodeInfo.animeTitle + '\n' + episodeInfo.episodeTitle;
+            window.ede.episode_info_str = episodeInfo.animeTitle + '\n' + episodeInfo.episodeTitle;
             return episodeInfo;
         }
 
