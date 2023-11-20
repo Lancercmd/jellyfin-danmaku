@@ -595,7 +595,7 @@
                 window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
                 window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
                 let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
-                episode = prompt('确认集数:\n' + episode_lists_str, parseInt(episode));
+                episode = prompt('确认集数:\n' + episode_lists_str, parseInt(episode) || 1);
                 episode = parseInt(episode) - 1;
             } else {
                 selecAnime_id = parseInt(selecAnime_id) - 1;
