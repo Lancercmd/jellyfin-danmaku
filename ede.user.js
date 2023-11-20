@@ -158,10 +158,10 @@
             id: 'danmakuSettings',
             class: settings_icon,
             onclick: () => {
-                let opacityStr = prompt("请输入0-1之间的透明度值（如0.7）", 0.7);
-                let speedStr = prompt("请输入0-1000弹幕速度（如200）", 200);
-                let sizeStr = prompt("请输入1-30弹幕大小（如18）", 18);
-                let heightRatio = prompt("请输入0-1之间的弹幕高度屏幕占比（如0.7）", 0.7)
+                let opacityStr = prompt("请输入0-1之间的透明度值（如0.7）", window.ede.opacity || 0.7);
+                let speedStr = prompt("请输入0-1000弹幕速度（如200）", window.ede.speed || 200);
+                let sizeStr = prompt("请输入1-30弹幕大小（如18）", window.ede.fontSize || 18);
+                let heightRatio = prompt("请输入0-1之间的弹幕高度屏幕占比（如0.7）", window.ede.heightRatio || 0.7)
                 if (!opacityStr || !speedStr) return;
                 if (window.ede) {
                     try {
@@ -181,13 +181,14 @@
                         showDebugInfo(`设置弹幕速度：${window.ede.speed}`);
                         window.localStorage.setItem('danmakuspeed', window.ede.speed.toString());
                         // 设置弹幕大小
-                        window.ede.size = tmpSize;
-                        showDebugInfo(`设置弹幕大小：${window.ede.size}`);
-                        window.localStorage.setItem('danmakusize', window.ede.size.toString());
+                        window.ede.fontSize = tmpSize;
+                        showDebugInfo(`设置弹幕大小：${window.ede.fontSize}`);
+                        window.localStorage.setItem('danmakusize', window.ede.fontSize.toString());
                         // 设置弹幕高度
                         window.ede.heightRatio = tmpHeightRatio;
                         showDebugInfo(`设置弹幕高度：${window.ede.heightRatio}`);
                         window.localStorage.setItem('danmakuheight', window.ede.heightRatio.toString());
+                        document.getElementById('danmakuWrapper').style.height = `${window.ede.heightRatio * 100}%`;
                         //Reload
                         reloadDanmaku('reload');
                     } catch (e) {
@@ -247,12 +248,10 @@
                 let speedRecord = window.localStorage.getItem('danmakuspeed')
                 this.speed = speedRecord ? parseFloatOfRange(speedRecord, 0.0, 1000.0) : 200
                 let sizeRecord = window.localStorage.getItem('danmakusize')
-                this.size = sizeRecord ? parseFloatOfRange(sizeRecord, 0.0, 50.0) : 18
+                this.fontSize = sizeRecord ? parseFloatOfRange(sizeRecord, 0.0, 50.0) : 18
                 let heightRecord = window.localStorage.getItem('danmakuheight')
                 this.heightRatio = heightRecord ? parseFloatOfRange(heightRecord, 0.0, 1.0) : 0.7
                 this.danmaku = null;
-                this.danmakuElement = null;
-                this.danmakuResize = null;
                 this.episode_info = null;
                 this.ob = null;
                 this.loading = false;
@@ -647,11 +646,14 @@
                 window.ede.danmaku.clear();
                 window.ede.danmaku.destroy();
                 window.ede.danmaku = null;
+                let wrapper = document.getElementById('danmakuWrapper');
+                wrapper.parentNode.removeChild(wrapper);
             }
             let _comments = danmakuFilter(danmakuParser(comments));
             showDebugInfo('弹幕加载成功: ' + _comments.length);
             showDebugInfo(`弹幕透明度：${window.ede.opacity}`);
             showDebugInfo(`弹幕速度：${window.ede.speed}`);
+            showDebugInfo(`弹幕高度比例：${window.ede.heightRatio}`);
 
             while (!document.querySelector(mediaContainerQueryStr)) {
                 await new Promise((resolve) => setTimeout(resolve, 200));
@@ -674,38 +676,35 @@
             }
             // showDebugInfo(_comments[0].text)
             // showDebugInfo(_container.id + ' ' + _media.className)
+
+            const wrapper = document.createElement('div');
+            wrapper.id = 'danmakuWrapper';
+            wrapper.style.position = 'relative';
+            wrapper.style.width = '100%';
+            wrapper.style.height = window.ede.heightRatio * 100 + '%';
+            wrapper.style.overflow = 'hidden';
+            _container.appendChild(wrapper);
+
             window.ede.danmaku = new Danmaku({
-                container: _container,
+                container: wrapper,
                 media: _media,
                 comments: _comments,
                 engine: 'canvas',
             });
+            
+            wrapper.lastChild.style.position = 'absolute';
+            wrapper.lastChild.style.top = '18px';
 
-            _container.childNodes.forEach(function (element) {
-                if (element.nodeName == 'CANVAS') {
-                    window.ede.danmakuElement = element;
-                    element.style.position = 'absolute';
-                    element.style.top = '18px';
-                }
-            });
+            // window.ede.danmakuResize = (heightRatio, element) => {
+            //     if (element) {
+            //         const ratioPercent = heightRatio * 100;
+            //         const ratio = ratioPercent + '%';
+            //         element.style.height = ratio;
+            //     }
+            // };
 
-            window.ede.danmakuResize = (heightRatio, element) => {
-                if (element) {
-                    const h = parseInt(element.style.height);
-                    const dpr = window.devicePixelRatio || 1;
-                    element.height = h * heightRatio * dpr;
-                    element.style.height = h * heightRatio + 'px';
-                }
-            };
-
-            _container.lastChild.style.opacity = window.ede.opacity;
+            wrapper.lastChild.style.opacity = window.ede.opacity;
             window.ede.danmaku.speed = window.ede.speed
-
-            // window.ede.danmaku.emit({
-            //     text: 'example',
-            //     mode: 'rtl',
-            //     time: 5.0,
-            // });
 
             window.ede.danmakuSwitch == 1 ? window.ede.danmaku.show() : window.ede.danmaku.hide();
             if (window.ede.ob) {
@@ -715,7 +714,6 @@
                 if (window.ede.danmaku) {
                     showDebugInfo('Resizing');
                     window.ede.danmaku.resize();
-                    window.ede.danmakuResize(window.ede.heightRatio, window.ede.danmakuElement);
                 }
             });
             window.ede.ob.observe(_container);
@@ -801,7 +799,7 @@
         function danmakuParser($obj) {
             //const $xml = new DOMParser().parseFromString(string, 'text/xml')
             // const fontSize = Math.round(((window.screen.height > window.screen.width ? window.screen.width : window.screen.height) / 1080) * 18);
-            const fontSize = window.ede.size; // font size is buggy on mobile, fixed to 18
+            const fontSize = window.ede.fontSize; // font size is buggy on mobile, fixed to 18
             showDebugInfo('Screen: ' + window.screen.width + 'x' + window.screen.height);
             showDebugInfo('fontSize: ' + fontSize);
             return $obj
