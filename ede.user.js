@@ -690,9 +690,10 @@
 
             wrapper = document.createElement('div');
             wrapper.id = 'danmakuWrapper';
-            wrapper.style.position = 'relative';
+            wrapper.style.position = 'absolute';
             wrapper.style.width = '100%';
             wrapper.style.height = window.ede.heightRatio * 100 + '%';
+            wrapper.style.top = '0';
             wrapper.style.overflow = 'hidden';
             _container.appendChild(wrapper);
 
