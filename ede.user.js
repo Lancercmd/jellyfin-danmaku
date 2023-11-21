@@ -798,7 +798,7 @@
                 )
                 .then(() => {
                     window.ede.loading = false;
-                    var danmakuCtr = document.getElementById('danmakuCtr');
+                    const danmakuCtr = document.getElementById('danmakuCtr');
                     if (danmakuCtr && danmakuCtr.style && danmakuCtr.style.opacity !== '1') {
                          danmakuCtr.style.opacity = 1;
                     }
