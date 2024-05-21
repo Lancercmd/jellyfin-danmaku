@@ -3,7 +3,7 @@
 // @description  Jellyfin弹幕插件
 // @namespace    https://github.com/RyoLee
 // @author       RyoLee
-// @version      1.35
+// @version      1.40
 // @copyright    2022, RyoLee (https://github.com/RyoLee)
 // @license      MIT; https://raw.githubusercontent.com/Izumiko/jellyfin-danmaku/jellyfin/LICENSE
 // @icon         https://github.githubassets.com/pinned-octocat.svg
@@ -13,6 +13,8 @@
 // @connect      *
 // @match        *://*/*/web/index.html
 // @match        *://*/web/index.html
+// @match        *://*/*/web/
+// @match        *://*/web/
 // @match        https://jellyfin-web.pages.dev/
 // ==/UserScript==
 
@@ -146,7 +148,7 @@
                         </div>
                         <div style="display: flex;">
                             <span id="lbspeed" style="flex: auto;">弹幕速度:</span>
-                            <input style="width: 50%;" type="range" id="speed" min="100" max="600" step="10" value="${window.ede.speed || 200}" />
+                            <input style="width: 50%;" type="range" id="speed" min="20" max="600" step="10" value="${window.ede.speed || 200}" />
                         </div>
                         <div style="display: flex;">
                             <span id="lbfontSize" style="flex: auto;">字体大小:</span>
@@ -214,7 +216,7 @@
                     window.ede.opacity = parseFloatOfRange(document.getElementById('opacity').value, 0, 1);
                     window.localStorage.setItem('danmakuopacity', window.ede.opacity.toString());
                     showDebugInfo(`设置弹幕透明度：${window.ede.opacity}`);
-                    window.ede.speed = parseFloatOfRange(document.getElementById('speed').value, 100, 600);
+                    window.ede.speed = parseFloatOfRange(document.getElementById('speed').value, 20, 600);
                     window.localStorage.setItem('danmakuspeed', window.ede.speed.toString());
                     showDebugInfo(`设置弹幕速度：${window.ede.speed}`);
                     window.ede.fontSize = parseFloatOfRange(document.getElementById('fontSize').value, 8, 40);
@@ -911,12 +913,55 @@
     }
 
     async function getComments(episodeId) {
-        let url = apiPrefix + 'https://api.dandanplay.net/api/v2/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
+        const { danmakufilter } = window.ede;
+        const url_all = apiPrefix + 'https://api.dandanplay.net/api/v2/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
+        const url_related = apiPrefix + 'https://api.dandanplay.net/api/v2/related/' + episodeId;
+        const url_ext = apiPrefix + 'https://api.dandanplay.net/api/v2/extcomment?url=';
         try {
-            const response = await makeGetRequest(url);
-            const data = isInTampermonkey ? JSON.parse(response) : await response.json();
-            showDebugInfo('弹幕下载成功: ' + data.comments.length);
-            return data.comments;
+            let response = await makeGetRequest(url_all);
+            let data = isInTampermonkey ? JSON.parse(response) : await response.json();
+            const nonDandan = /^.{3,}\]/; // 匹配非弹弹play弹幕
+            let hasRelated = false;
+            for (const c of data.comments) {
+                if (nonDandan.test(c.p.split(',').pop())) {
+                    hasRelated = true;
+                    break;
+                }
+            }
+            if (hasRelated) { // 实际包含第三方弹幕
+                showDebugInfo('弹幕下载成功: ' + data.comments.length);
+                return data.comments;
+            } else {
+                showDebugInfo('缺少第三方弹幕，尝试获取');
+            }
+            let comments = data.comments;
+            response = await makeGetRequest(url_related);
+            data = isInTampermonkey ? JSON.parse(response) : await response.json();
+            showDebugInfo('第三方弹幕源个数：' + data.relateds.length);
+
+            if (data.relateds.length > 0) {
+                // 根据设置过滤弹幕源
+                let src = [];
+                for (const s of data.relateds) {
+                    if ((danmakufilter & 1) !== 1 && s.url.includes('bilibili')) {
+                        src.push(s.url);
+                    }
+                    if ((danmakufilter & 2) !== 2 && s.url.includes('gamer')) {
+                        src.push(s.url);
+                    }
+                    if ((danmakufilter & 8) !== 8 && !s.url.includes('bilibili') && !s.url.includes('gamer')) {
+                        src.push(s.url);
+                    }
+                }
+                // 获取第三方弹幕
+                for (const s of src) {
+                    response = await makeGetRequest(url_ext + encodeURIComponent(s));
+                    data = isInTampermonkey ? JSON.parse(response) : await response.json();
+                    comments = comments.concat(data.comments);
+                }
+            }
+            showDebugInfo('弹幕下载成功: ' + comments.length);
+            return comments;
         } catch (error) {
             showDebugInfo('获取弹幕失败:', error);
             return null;
@@ -940,7 +985,38 @@
     }
 
     async function createDanmaku(comments) {
+        if (!window.obVideo) {
+            window.obVideo = new MutationObserver((mutationList, _observer) => {
+                for (let mutationRecord of mutationList) {
+                    if (mutationRecord.removedNodes) {
+                        for (let removedNode of mutationRecord.removedNodes) {
+                            if (removedNode.className && removedNode.classList.contains('videoPlayerContainer')) {
+                                console.log('[Jellyfin-Danmaku] Video Removed');
+                                window.ede.loading = false;
+                                document.getElementById('danmakuInfoTitle')?.remove();
+                                const wrapper = document.getElementById('danmakuWrapper');
+                                if (wrapper) wrapper.style.display = 'none';
+                                return;
+                            }
+                        }
+                    }
+                    if (mutationRecord.addedNodes) {
+                        for (let addedNode of mutationRecord.addedNodes) {
+                            if (addedNode.className && addedNode.classList.contains('videoPlayerContainer')) {
+                                console.log('[Jellyfin-Danmaku] Video Added');
+                                reloadDanmaku('refresh');
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+
+            window.obVideo.observe(document.body, { childList: true });
+        }
+
         if (!comments) {
+            showDebugInfo('无弹幕');
             return;
         }
 
@@ -1036,25 +1112,6 @@
 
         window.ede.obMutation = new MutationObserver(mutationObserverCallback);
         window.ede.obMutation.observe(_media, { attributes: true });
-
-        if (!window.obVideo) {
-            window.obVideo = new MutationObserver((mutationList, _observer) => {
-                for (let mutationRecord of mutationList) {
-                    if (mutationRecord.removedNodes) {
-                        for (let removedNode of mutationRecord.removedNodes) {
-                            if (removedNode.className && removedNode.classList.contains('videoPlayerContainer')) {
-                                console.log('Video Removed');
-                                window.ede.loading = false;
-                                document.getElementById('danmakuInfoTitle')?.remove();
-                                return;
-                            }
-                        }
-                    }
-                }
-            });
-
-            window.obVideo.observe(document.body, { childList: true });
-        }
     }
 
     function displayDanmakuInfo(info) {
@@ -1121,32 +1178,43 @@
             return comments;
         }
 
-        const limit = 9 - level * 2;
-        const verticalLimit = 6;
+        let _container = null;
+        document.querySelectorAll(mediaContainerQueryStr).forEach((element) => {
+            if (!element.classList.contains('hide')) {
+                _container = element;
+            }
+        });
+
+        const containerWidth = _container.offsetWidth;
+        const containerHeight = _container.offsetHeight * window.ede.heightRatio - 18;
+        const duration = Math.ceil(containerWidth / window.ede.speed);
+        const lines = Math.floor(containerHeight / window.ede.fontSize) - 1;
+
+        const limit = (9 - level * 2) * lines;
+        const verticalLimit = lines - 1 > 0 ? lines - 1 : 1;
         const resultComments = [];
 
         const timeBuckets = {};
         const verticalTimeBuckets = {};
 
         comments.forEach(comment => {
-            const timeIndex = Math.ceil(comment.time);
-            const verticalTimeIndex = Math.ceil(comment.time / 3);
+            const timeIndex = Math.ceil(comment.time / duration);
 
             if (!timeBuckets[timeIndex]) {
-                timeBuckets[timeIndex] = [];
+                timeBuckets[timeIndex] = 0;
             }
-            if (!verticalTimeBuckets[verticalTimeIndex]) {
-                verticalTimeBuckets[verticalTimeIndex] = [];
+            if (!verticalTimeBuckets[timeIndex]) {
+                verticalTimeBuckets[timeIndex] = 0;
             }
 
             if (comment.mode === 'top' || comment.mode === 'bottom') {
-                if (verticalTimeBuckets[verticalTimeIndex].length < verticalLimit) {
-                    verticalTimeBuckets[verticalTimeIndex].push(comment);
+                if (verticalTimeBuckets[timeIndex] < verticalLimit) {
+                    verticalTimeBuckets[timeIndex]++;
                     resultComments.push(comment);
                 }
             } else {
-                if (timeBuckets[timeIndex].length < limit) {
-                    timeBuckets[timeIndex].push(comment);
+                if (timeBuckets[timeIndex] < limit) {
+                    timeBuckets[timeIndex]++;
                     resultComments.push(comment);
                 }
             }
@@ -1155,7 +1223,7 @@
         return resultComments;
     }
 
-    function danmakuParser($obj) {
+    function danmakuParser(all_cmts) {
         const { fontSize, danmakufilter } = window.ede;
 
         const disableBilibili = (danmakufilter & 1) === 1;
@@ -1171,18 +1239,18 @@
         if (filterule === '') { filterule = '!.*'; }
         const danmakufilterule = new RegExp(filterule);
 
-        return $obj
-            .filter(($comment) => {
-                return !danmakufilterule.test($comment.p.split(',').pop());
+        return all_cmts
+            .filter((comment, index, self) => {
+                return !danmakufilterule.test(comment.p.split(',').pop()) && index === self.findIndex((t) => t.cid === comment.cid);
             })
-            .map(($comment) => {
-                const [time, modeId, colorValue] = $comment.p.split(',').map((v, i) => i === 0 ? parseFloat(v) : parseInt(v, 10));
+            .map((comment) => {
+                const [time, modeId, colorValue] = comment.p.split(',').map((v, i) => i === 0 ? parseFloat(v) : parseInt(v, 10));
                 const mode = { 6: 'ltr', 1: 'rtl', 5: 'top', 4: 'bottom' }[modeId];
                 if (!mode) return null;
 
                 const color = `000000${colorValue.toString(16)}`.slice(-6);
                 return {
-                    text: $comment.m,
+                    text: comment.m,
                     mode,
                     time,
                     style: {
