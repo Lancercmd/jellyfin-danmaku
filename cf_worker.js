@@ -31,6 +31,16 @@ function handleOptions(request) {
     }
 }
 
+async function generateSignature(appId, timestamp, path, appSecret) {
+    const data = appId + timestamp + path + appSecret;
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashBase64 = btoa(String.fromCharCode.apply(null, hashArray));
+    return hashBase64;
+}
+
 async function handleRequest(request) {
     let response;
     if (request.method === 'OPTIONS') {
@@ -48,9 +58,10 @@ async function handleRequest(request) {
             return Forbidden(tUrlObj);
         }
 
+        const body = request.method === 'POST' ? await request.json() : null;
+
         // dandanplay login, compute sigh hash with appId and appSecret
         if (request.method === 'POST' && tUrlObj.pathname === '/api/v2/login') {
-            let body = await request.json();
             if (body.userName.length == 0 || body.password.length == 0) {
                 return new Response('{"error": "用户名或密码不能为空"}', {
                     status: 400,
@@ -65,22 +76,22 @@ async function handleRequest(request) {
             body.hash = Array.from(new Uint8Array(hash))
                 .map((b) => b.toString(16).padStart(2, '0'))
                 .join('');
-
-            response = await fetch(url, {
-                headers: request.headers,
-                body: JSON.stringify(body),
-                method: request.method,
-            });
-            response = new Response(await response.body, response);
-            response.headers.set('Access-Control-Allow-Origin', '*');
-            response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
-
-            return response;
         }
 
+        // handle dandanplay api auth
+        const timeStamp = Math.round(new Date().getTime() / 1000);
+        const apiPath = tUrlObj.pathname;
+        const signature = await generateSignature(appId, timeStamp, apiPath, appSecret);
+
         response = await fetch(url, {
-            headers: request.headers,
-            body: request.body,
+            headers: {
+                ...request.headers,
+                'X-AppId': appId,
+                'X-Signature': signature,
+                'X-Timestamp': timeStamp,
+                'X-Auth': '1',
+            },
+            body: body ? JSON.stringify(body) : null,
             method: request.method,
         });
         response = new Response(await response.body, response);
