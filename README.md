@@ -98,6 +98,8 @@ example.com {
 
 [思路来源](https://github.com/Izumiko/jellyfin-danmaku/issues/20)
 
+**注**：修改镜像需要root权限，请勿更改容器的运行用户
+
 #### 3.1 Docker模式启动的服务端
 
 官方镜像的Entrypoint是`/jellyfin/jellyfin`，`hotio/jellyfin`镜像的Entrypoint是`/init`，可在`docker-compose.yml`的jellyfin部分增加一行如下代码，用带sed的Entrypoint替换默认的Entrypoint。
@@ -105,13 +107,13 @@ example.com {
 官方镜像：
 
 ```yaml
-entrypoint: sed -i 's#</div></body>#</div><script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>#' /jellyfin/jellyfin-web/index.html && /jellyfin/jellyfin
+entrypoint: sh -c "sed -i 's#</div></body>#</div><script src=\"https://jellyfin-danmaku.pages.dev/ede.user.js\" defer></script></body>#' /jellyfin/jellyfin-web/index.html && exec /jellyfin/jellyfin"
 ```
 
 `hotio/jellyfin`镜像：
 
 ```yaml
-entrypoint: sed -i 's#</div></body>#</div><script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>#' /usr/share/jellyfin/web/index.html && /init
+entrypoint: sh -c "sed -i 's#</div></body>#</div><script src=\"https://jellyfin-danmaku.pages.dev/ede.user.js\" defer></script></body>#' /usr/share/jellyfin/web/index.html && exec /init"
 ```
 
 #### 3.2 直接用包管理器安装，并使用systemd管理的服务端
