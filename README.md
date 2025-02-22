@@ -54,6 +54,9 @@
 ### 1. 浏览器插件(推荐)
 
 1. [安装Tampermonkey插件](https://www.tampermonkey.net/)
+
+**注：** 首次安装完Tampermonkey插件后记得启动[开发者模式用于运行用户脚本](https://www.tampermonkey.net/faq.php#Q209)
+
 2. [添加脚本](https://jellyfin-danmaku.pages.dev/ede.user.js)
 
 ### 2. 反向代理处理(推荐)
