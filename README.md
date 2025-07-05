@@ -51,13 +51,20 @@
 
 **注：** 安装完首次使用时，确保只有当前一个客户端访问服务器，以方便根据当前用户id获取Session时能唯一定位到当前客户端设备id。（主要是由于非Jellyfin Web客户端没有默认在localstorage中存储DeviceID）
 
+**由于Cloudflare Pages被干扰，推荐使用以下任一地址替代原本的** ~~https://jellyfin-danmaku.pages.dev/ede.user.js~~
+
+> https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js   
+> https://jellyfin-danmaku.930524.xyz/ede.user.js   
+> https://jellyfin-danmaku.vercel.app/ede.user.js   
+
+
 ### 1. 浏览器插件(推荐)
 
 1. [安装Tampermonkey插件](https://www.tampermonkey.net/)
 
 **注：** 首次安装完Tampermonkey插件后记得启动[开发者模式用于运行用户脚本](https://www.tampermonkey.net/faq.php#Q209)
 
-2. [添加脚本](https://jellyfin-danmaku.pages.dev/ede.user.js)
+2. [添加脚本](https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js)
 
 ### 2. 反向代理处理(推荐)
 
@@ -67,7 +74,7 @@
 
 ```conf
 proxy_set_header Accept-Encoding "";
-sub_filter '</body>' '<script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>';
+sub_filter '</body>' '<script src="https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js" defer></script></body>';
 sub_filter_once on;
 ```
 
@@ -88,7 +95,7 @@ example.com {
     filter {
         path /web/.*
         search_pattern </body>
-        replacement "<script src=\"https://jellyfin-danmaku.pages.dev/ede.user.js\" defer></script></body>"
+        replacement "<script src=\"https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js\" defer></script></body>"
         content_type text/html
     }
     reverse_proxy localhost:8096 {
@@ -110,13 +117,13 @@ example.com {
 官方镜像：
 
 ```yaml
-entrypoint: sh -c "sed -i 's#</div></body>#</div><script src=\"https://jellyfin-danmaku.pages.dev/ede.user.js\" defer></script></body>#' /jellyfin/jellyfin-web/index.html && exec /jellyfin/jellyfin"
+entrypoint: sh -c "sed -i 's#</div></body>#</div><script src=\"https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js\" defer></script></body>#' /jellyfin/jellyfin-web/index.html && exec /jellyfin/jellyfin"
 ```
 
 `hotio/jellyfin`镜像：
 
 ```yaml
-entrypoint: sh -c "sed -i 's#</div></body>#</div><script src=\"https://jellyfin-danmaku.pages.dev/ede.user.js\" defer></script></body>#' /usr/share/jellyfin/web/index.html && exec /init"
+entrypoint: sh -c "sed -i 's#</div></body>#</div><script src=\"https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js\" defer></script></body>#' /usr/share/jellyfin/web/index.html && exec /init"
 ```
 
 #### 3.2 直接用包管理器安装，并使用systemd管理的服务端
@@ -128,14 +135,14 @@ deb包安装的版本：
 
 ```ini
 [Service]
-ExecStartPre=-/usr/bin/sed -i 's#</div></body>#</div><script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>#' /usr/share/jellyfin/web/index.html
+ExecStartPre=-/usr/bin/sed -i 's#</div></body>#</div><script src="https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js" defer></script></body>#' /usr/share/jellyfin/web/index.html
 ```
 
 aur安装的版本：
 
 ```ini
 [Service]
-ExecStartPre=-/usr/bin/sed -i 's#</div></body>#</div><script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>#' /usr/lib/jellyfin/jellyfin-web/index.html
+ExecStartPre=-/usr/bin/sed -i 's#</div></body>#</div><script src="https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js" defer></script></body>#' /usr/lib/jellyfin/jellyfin-web/index.html
 ```
 
 保存后，运行`systemctl daemon-reload`生效，`systemctl restart jellyfin`重启当前服务。
@@ -153,7 +160,7 @@ ExecStartPre=-/usr/bin/sed -i 's#</div></body>#</div><script src="https://jellyf
 **在`</body>`前添加如下标签**
 
 ```html
-<script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js" defer></script>
 ```
 
 **Shell中的操作命令为：**
@@ -161,13 +168,13 @@ ExecStartPre=-/usr/bin/sed -i 's#</div></body>#</div><script src="https://jellyf
 *Official Docker:*
 
 ```bash
-sed -i 's#</body>#<script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>#' /jellyfin/jellyfin-web/index.html
+sed -i 's#</body>#<script src="https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js" defer></script></body>#' /jellyfin/jellyfin-web/index.html
 ```
 
 *Default:*
 
 ```bash
-sed -i 's#</body>#<script src="https://jellyfin-danmaku.pages.dev/ede.user.js" defer></script></body>#' /usr/share/jellyfin/web/index.html
+sed -i 's#</body>#<script src="https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js" defer></script></body>#' /usr/share/jellyfin/web/index.html
 ```
 
 该方式安装与浏览器插件安装**可同时使用不冲突**
