@@ -1231,6 +1231,7 @@
         const mutationObserverCallback = () => {
             if (window.ede.danmaku && document.querySelector(mediaQueryStr)) {
                 showDebugInfo('探测播放媒体变化');
+                document.getElementById('danmakuInfoTitle')?.remove();
                 const sleep = new Promise(resolve => setTimeout(resolve, 3000));
                 sleep.then(() => reloadDanmaku('refresh'));
             }
