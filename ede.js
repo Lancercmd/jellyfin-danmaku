@@ -47,6 +47,7 @@
 
     let isNewJellyfin = true;
     let itemId = '';
+    const defaultFontFamily = '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif';
 
     // Intercept XMLHttpRequest
     const originalOpen = XMLHttpRequest.prototype.open;
@@ -166,7 +167,7 @@
                         </div>
                         <div style="display: flex;">
                             <label style="flex: auto;">字体:</label>
-                            <div><input style="flex-grow: 1;" id="danmakuFontFamily" placeholder="sans-serif" value="${window.ede.fontFamily ?? "sans-serif"}" /></div>
+                            <div><input style="flex-grow: 1;" id="danmakuFontFamily" placeholder="sans-serif" value="${window.ede.fontFamily?.replaceAll('"', "&quot;") ?? defaultFontFamily}" /></div>
                         </div>
                         <div style="display: flex;">
                             <span id="lbfontSize" style="flex: auto;">字体大小:</span>
@@ -174,7 +175,7 @@
                         </div>
                         <div style="display: flex;">
                             <label style="flex: auto;">其他字体选项:</label>
-                            <div><input style="flex-grow: 1;" id="danmakuFontOptions" placeholder="" value="${window.ede.fontOptions ?? ""}" /></div>
+                            <div><input style="flex-grow: 1;" id="danmakuFontOptions" placeholder="" value="${window.ede.fontOptions?.replaceAll('"', "&quot;") ?? ""}" /></div>
                         </div>
                         <div style="display: flex;">
                             <span id="lbheightRatio" style="flex: auto;">高度比例:</span>
