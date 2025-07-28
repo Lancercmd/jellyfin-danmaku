@@ -1164,7 +1164,7 @@
         if (window.ede.curEpOffset !== 0) showDebugInfo(`当前弹幕偏移：${window.ede.curEpOffset} 秒`);
 
         const waitForMediaContainer = async () => {
-            while (!document.querySelector(mediaContainerQueryStr)) {
+            while (!document.querySelector(mediaContainerQueryStr)?.children.length) {
                 await new Promise((resolve) => setTimeout(resolve, 200));
             }
         };
