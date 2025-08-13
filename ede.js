@@ -770,7 +770,9 @@
                 }
             }
         }
-
+        document.getElementById('danmakuFontOptions').addEventListener('keydown', event => event.stopPropagation(), true);
+        document.getElementById('danmakuFontFamily').addEventListener('keydown', event => event.stopPropagation(), true);
+        document.getElementById('danmakuOffsetTime').addEventListener('keydown', event => event.stopPropagation(), true);
         // 初始化显示默认标签内容
         if (activeTabId) {
             showTabContent(activeTabId);
