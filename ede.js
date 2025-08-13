@@ -552,6 +552,389 @@
         }, 300);
     }
 
+    // 创建自定义输入对话框
+    function createInputDialog(title, placeholder, defaultValue = '') {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(8px);
+                z-index: 2000000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: rgba(20, 20, 25, 0.65);
+                backdrop-filter: blur(25px) saturate(1.5);
+                border-radius: 16px;
+                padding: 24px;
+                width: 400px;
+                max-width: 90vw;
+                box-shadow: 
+                    0 16px 40px rgba(0, 0, 0, 0.6),
+                    0 8px 20px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                position: relative;
+                overflow: hidden;
+            `;
+
+            dialog.innerHTML = `
+                <h3 style="color: #fff; margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">${title}</h3>
+                <input type="text" id="dialogInput" placeholder="${placeholder}" value="${defaultValue}" style="
+                    width: 100%;
+                    margin-bottom: 20px;
+                    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                " />
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button id="dialogCancel" style="
+                        padding: 10px 20px;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        border-radius: 8px;
+                        background: rgba(255, 255, 255, 0.1);
+                        color: #fff;
+                        font-size: 14px;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                    ">取消</button>
+                    <button id="dialogConfirm" style="
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 8px;
+                        background: rgba(0, 164, 220, 1);
+                        color: #fff;
+                        font-size: 14px;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                    ">确认</button>
+                </div>
+            `;
+
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            // 添加磨砂玻璃效果层
+            const glassLayer = document.createElement('div');
+            glassLayer.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.1) 0%,
+                    rgba(255, 255, 255, 0.05) 50%,
+                    rgba(0, 0, 0, 0.1) 100%
+                );
+                border-radius: 16px;
+                pointer-events: none;
+                z-index: -1;
+            `;
+            dialog.appendChild(glassLayer);
+
+            // 确保样式已经应用到页面
+            addDanmakuSidebarStyles();
+
+            const input = dialog.querySelector('#dialogInput');
+            const cancelBtn = dialog.querySelector('#dialogCancel');
+            const confirmBtn = dialog.querySelector('#dialogConfirm');
+
+            input.focus();
+            input.select();
+
+            input.addEventListener('keydown', event => event.stopPropagation(), true); 
+
+            const cleanup = () => {
+                document.body.removeChild(overlay);
+            };
+
+            cancelBtn.onclick = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            confirmBtn.onclick = () => {
+                const value = input.value.trim();
+                cleanup();
+                resolve(value || null);
+            };
+
+            // 添加按钮hover效果
+            cancelBtn.onmouseenter = () => {
+                cancelBtn.style.background = 'rgba(255, 255, 255, 0.15)';
+                cancelBtn.style.transform = 'translateY(-1px)';
+            };
+            cancelBtn.onmouseleave = () => {
+                cancelBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+                cancelBtn.style.transform = 'translateY(0)';
+            };
+
+            confirmBtn.onmouseenter = () => {
+                confirmBtn.style.background = 'rgba(0, 164, 220, 0.8)';
+                confirmBtn.style.transform = 'translateY(-1px)';
+            };
+            confirmBtn.onmouseleave = () => {
+                confirmBtn.style.background = 'rgba(0, 164, 220, 1)';
+                confirmBtn.style.transform = 'translateY(0)';
+            };
+
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    confirmBtn.click();
+                } else if (e.key === 'Escape') {
+                    cancelBtn.click();
+                }
+            };
+
+            overlay.onclick = (e) => {
+                if (e.target === overlay) {
+                    cancelBtn.click();
+                }
+            };
+        });
+    }
+
+    // 创建自定义选择对话框
+    function createSelectDialog(title, options, defaultIndex = 0) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(8px);
+                z-index: 2000000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const dialog = document.createElement('div');
+            dialog.style.cssText = `
+                background: rgba(20, 20, 25, 0.65);
+                backdrop-filter: blur(25px) saturate(1.5);
+                border-radius: 16px;
+                padding: 24px;
+                width: 500px;
+                max-width: 90vw;
+                max-height: 80vh;
+                box-shadow: 
+                    0 16px 40px rgba(0, 0, 0, 0.6),
+                    0 8px 20px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                display: flex;
+                flex-direction: column;
+                position: relative;
+                overflow: hidden;
+            `;
+
+            const titleEl = document.createElement('h3');
+            titleEl.style.cssText = `
+                color: #fff;
+                margin: 0 0 16px 0;
+                font-size: 18px;
+                font-weight: 600;
+            `;
+            titleEl.textContent = title;
+
+            const listContainer = document.createElement('div');
+            listContainer.style.cssText = `
+                flex: 1;
+                overflow-y: auto;
+                margin-bottom: 20px;
+                max-height: 400px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.05);
+                scrollbar-width: thin;
+                scrollbar-color: rgba(0, 164, 220, 0.5) rgba(0, 0, 0, 0.1);
+            `;
+
+            // 添加webkit滚动条样式
+            const style = document.createElement('style');
+            style.textContent = `
+                .danmaku-select-list::-webkit-scrollbar {
+                    width: 8px;
+                }
+                .danmaku-select-list::-webkit-scrollbar-track {
+                    background: rgba(0, 0, 0, 0.1);
+                    border-radius: 4px;
+                }
+                .danmaku-select-list::-webkit-scrollbar-thumb {
+                    background: rgba(0, 164, 220, 0.5);
+                    border-radius: 4px;
+                }
+                .danmaku-select-list::-webkit-scrollbar-thumb:hover {
+                    background: rgba(0, 164, 220, 0.7);
+                }
+            `;
+            document.head.appendChild(style);
+            listContainer.className = 'danmaku-select-list';
+
+            let selectedIndex = defaultIndex;
+
+            options.forEach((option, index) => {
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    padding: 12px 16px;
+                    color: #fff;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    background: ${index === selectedIndex ? 'rgba(0, 164, 220, 0.2)' : 'transparent'};
+                `;
+                item.textContent = option;
+
+                item.onmouseenter = () => {
+                    if (index !== selectedIndex) {
+                        item.style.background = 'rgba(255, 255, 255, 0.08)';
+                    }
+                };
+
+                item.onmouseleave = () => {
+                    item.style.background = index === selectedIndex ? 'rgba(0, 164, 220, 0.2)' : 'transparent';
+                };
+
+                item.onclick = () => {
+                    // 更新选中状态
+                    listContainer.querySelectorAll('div').forEach((el, i) => {
+                        el.style.background = i === index ? 'rgba(0, 164, 220, 0.2)' : 'transparent';
+                    });
+                    selectedIndex = index;
+                };
+
+                listContainer.appendChild(item);
+            });
+
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.style.cssText = `
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+            `;
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '取消';
+            cancelBtn.style.cssText = `
+                padding: 10px 20px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+                transition: all 0.3s;
+            `;
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = '确认';
+            confirmBtn.style.cssText = `
+                padding: 10px 20px;
+                border: none;
+                border-radius: 8px;
+                background: rgba(0, 164, 220, 1);
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+                transition: all 0.3s;
+            `;
+
+            buttonsContainer.appendChild(cancelBtn);
+            buttonsContainer.appendChild(confirmBtn);
+
+            dialog.appendChild(titleEl);
+            dialog.appendChild(listContainer);
+            dialog.appendChild(buttonsContainer);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            // 添加磨砂玻璃效果层
+            const glassLayer = document.createElement('div');
+            glassLayer.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, 
+                    rgba(255, 255, 255, 0.1) 0%,
+                    rgba(255, 255, 255, 0.05) 50%,
+                    rgba(0, 0, 0, 0.1) 100%
+                );
+                border-radius: 16px;
+                pointer-events: none;
+                z-index: -1;
+            `;
+            dialog.appendChild(glassLayer);
+
+            // 确保样式已经应用到页面
+            addDanmakuSidebarStyles();
+
+            const cleanup = () => {
+                document.body.removeChild(overlay);
+            };
+
+            cancelBtn.onclick = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            confirmBtn.onclick = () => {
+                cleanup();
+                resolve(selectedIndex);
+            };
+
+            // 添加按钮hover效果
+            cancelBtn.onmouseenter = () => {
+                cancelBtn.style.background = 'rgba(255, 255, 255, 0.15)';
+                cancelBtn.style.transform = 'translateY(-1px)';
+            };
+            cancelBtn.onmouseleave = () => {
+                cancelBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+                cancelBtn.style.transform = 'translateY(0)';
+            };
+
+            confirmBtn.onmouseenter = () => {
+                confirmBtn.style.background = 'rgba(0, 164, 220, 0.8)';
+                confirmBtn.style.transform = 'translateY(-1px)';
+            };
+            confirmBtn.onmouseleave = () => {
+                confirmBtn.style.background = 'rgba(0, 164, 220, 1)';
+                confirmBtn.style.transform = 'translateY(0)';
+            };
+
+            overlay.onclick = (e) => {
+                if (e.target === overlay) {
+                    cancelBtn.click();
+                }
+            };
+
+            document.onkeydown = (e) => {
+                if (e.key === 'Escape') {
+                    cancelBtn.click();
+                    document.onkeydown = null;
+                } else if (e.key === 'Enter') {
+                    confirmBtn.click();
+                    document.onkeydown = null;
+                }
+            };
+        });
+    }
+
 
     // 设置弹幕设置内容
     function setupDanmakuSettings(container) {
@@ -1020,12 +1403,12 @@
                 ">添加</div>
             `;
 
-            addSourceItem.addEventListener('click', function (e) {
+            addSourceItem.addEventListener('click', async function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 // addSourceButton.click();
                 showDebugInfo('手动增加弹幕源');
-                let source = prompt('请输入弹幕源地址:');
+                let source = await createInputDialog('添加弹幕源', '请输入弹幕源地址(如B站播放链接)', '');
                 if (source) {
                     getCommentsByUrl(source)
                         .then(comments => {
@@ -1565,7 +1948,7 @@
             animeName = window.localStorage.getItem(_name_key);
         }
         if (!is_auto) {
-            animeName = prompt('确认动画名:', animeName);
+            animeName = await createInputDialog('确认动画名', '请输入动画名称', animeName);
             if (animeName == null || animeName == '') {
                 return null;
             }
@@ -1613,16 +1996,33 @@
         if (!is_auto) {
             let anime_lists_str = list2string(animaInfo);
             showDebugInfo(anime_lists_str);
-            selecAnime_id = prompt('选择节目:\n' + anime_lists_str, selecAnime_id);
-            selecAnime_id = parseInt(selecAnime_id) - 1;
-            window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
-            window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
-            let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
-            episode = prompt('选择剧集:\n' + episode_lists_str, parseInt(episode) || 1);
-            if (episode == null || episode == '') {
+            
+            // 创建选项数组供对话框使用
+            const animeOptions = animaInfo.animes.map((anime) => {
+                return anime.animeTitle + ' 类型:' + anime.typeDescription;
+            });
+            
+            const selectedAnimeIndex = await createSelectDialog('选择节目', animeOptions, selecAnime_id - 1);
+            if (selectedAnimeIndex === null) {
                 return null;
             }
-            episode = parseInt(episode) - 1;
+            selecAnime_id = selectedAnimeIndex;
+            
+            window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
+            window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
+            
+            let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
+            
+            // 创建剧集选项数组
+            const episodeOptions = animaInfo.animes[selecAnime_id].episodes.map((ep) => {
+                return ep.episodeTitle;
+            });
+            
+            const selectedEpisodeIndex = await createSelectDialog('选择剧集', episodeOptions, (parseInt(episode) || 1) - 1);
+            if (selectedEpisodeIndex === null) {
+                return null;
+            }
+            episode = selectedEpisodeIndex;
         } else {
             selecAnime_id = parseInt(selecAnime_id) - 1;
             let initialTitle = animaInfo.animes[selecAnime_id].episodes[0].episodeTitle;
@@ -3094,6 +3494,7 @@
         input#danmakuFontFamily,
         input#danmakuOffsetTime,
         input#danmakuFontOptions,
+        input#dialogInput,
         [id*="danmaku"] input[type="text"],
         [id*="danmaku"] input[type="number"] {
             background: linear-gradient(135deg, rgba(128, 128, 128, 0.06), rgba(160, 160, 160, 0.06)) !important;
@@ -3116,7 +3517,8 @@
 
         input#danmakuFontFamily:focus,
         input#danmakuOffsetTime:focus,
-        input#danmakuFontOptions:focus {
+        input#danmakuFontOptions:focus,
+        input#dialogInput:focus {
             background: linear-gradient(135deg, rgba(0, 164, 220, 0.1), rgba(0, 164, 219, 0.1)) !important;
             border-color: rgba(0, 164, 220, 0.6) !important;
             box-shadow: 
