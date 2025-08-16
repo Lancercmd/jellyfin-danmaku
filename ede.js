@@ -1150,7 +1150,27 @@
             window.ede.danmaku = null;
         }
 
-        let _comments = danmakuFilter(danmakuParser(comments));
+        const waitForMediaContainer = async () => {
+            while (!document.querySelector(mediaContainerQueryStr)?.children.length) {
+                await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+        };
+
+        await waitForMediaContainer();
+
+        let _container = null;
+        document.querySelectorAll(mediaContainerQueryStr).forEach((element) => {
+            if (!element.classList.contains('hide')) {
+                _container = element;
+            }
+        });
+        if (!_container) {
+            showDebugInfo('未找到播放器');
+            return;
+        }
+
+        let _comments = preProcessDanmaku(comments, _container.offsetWidth, _container.offsetHeight);
+
         showDebugInfo(`弹幕加载成功: ${_comments.length}`);
         showDebugInfo(`弹幕透明度：${window.ede.opacity}`);
         showDebugInfo(`弹幕速度：${window.ede.speed}`);
@@ -1163,26 +1183,7 @@
         showDebugInfo(`屏幕分辨率：${window.screen.width}x${window.screen.height}`);
         if (window.ede.curEpOffset !== 0) showDebugInfo(`当前弹幕偏移：${window.ede.curEpOffset} 秒`);
 
-        const waitForMediaContainer = async () => {
-            while (!document.querySelector(mediaContainerQueryStr)?.children.length) {
-                await new Promise((resolve) => setTimeout(resolve, 200));
-            }
-        };
-
-        await waitForMediaContainer();
-
-        let _container = null;
         const reactRoot = document.getElementById('reactRoot');
-        document.querySelectorAll(mediaContainerQueryStr).forEach((element) => {
-            if (!element.classList.contains('hide')) {
-                _container = element;
-            }
-        });
-
-        if (!_container) {
-            showDebugInfo('未找到播放器');
-            return;
-        }
 
         let _media = document.querySelector(mediaQueryStr);
         if (!_media) {
@@ -1339,113 +1340,105 @@
             });
     }
 
-    function danmakuFilter(comments) {
-        const level = window.ede.danmakuDensityLimit;
-        if (level === 0) {
-            return comments;
-        }
+    function preProcessDanmaku(all_cmts, containerWidth, containerHeight) {
+        const { fontSize, fontOptions, fontFamily, speed, heightRatio, danmakuFilter, danmakuModeFilter, danmakuDensityLimit, curEpOffset } = window.ede;
 
-        let _container = null;
-        document.querySelectorAll(mediaContainerQueryStr).forEach((element) => {
-            if (!element.classList.contains('hide')) {
-                _container = element;
-            }
-        });
-
-        const containerWidth = _container.offsetWidth;
-        const containerHeight = _container.offsetHeight * window.ede.heightRatio - 18;
-        const duration = Math.ceil(containerWidth / window.ede.speed);
-        const lines = Math.floor(containerHeight / window.ede.fontSize) - 1;
-
-        const limit = (9 - level * 2) * lines;
-        const verticalLimit = lines - 1 > 0 ? lines - 1 : 1;
-        const resultComments = [];
-
-        const timeBuckets = {};
-        const verticalTimeBuckets = {};
-
-        comments.forEach(comment => {
-            const timeIndex = Math.ceil(comment.time / duration);
-
-            if (!timeBuckets[timeIndex]) {
-                timeBuckets[timeIndex] = 0;
-            }
-            if (!verticalTimeBuckets[timeIndex]) {
-                verticalTimeBuckets[timeIndex] = 0;
-            }
-
-            if (comment.mode === 'top' || comment.mode === 'bottom') {
-                if (verticalTimeBuckets[timeIndex] < verticalLimit) {
-                    verticalTimeBuckets[timeIndex]++;
-                    resultComments.push(comment);
-                }
-            } else {
-                if (timeBuckets[timeIndex] < limit) {
-                    timeBuckets[timeIndex]++;
-                    resultComments.push(comment);
-                }
-            }
-        });
-
-        return resultComments;
-    }
-
-    function danmakuParser(all_cmts) {
-        const { fontSize, fontOptions, fontFamily, danmakuFilter, danmakuModeFilter, curEpOffset } = window.ede;
-
+        // 来源过滤规则
         const disableBilibili = (danmakuFilter & 1) === 1;
         const disableGamer = (danmakuFilter & 2) === 2;
         const disableDandan = (danmakuFilter & 4) === 4;
         const disableOther = (danmakuFilter & 8) === 8;
 
-        let filterule = '';
-        if (disableDandan) { filterule += '^(?!\\[)|\^.{0,3}\\]'; }
-        if (disableBilibili) { filterule += (filterule ? '|' : '') + '\^\\[BiliBili\\]'; }
-        if (disableGamer) { filterule += (filterule ? '|' : '') + '\^\\[Gamer\\]'; }
-        if (disableOther) { filterule += (filterule ? '|' : '') + '\^\\[\(\?\!\(BiliBili\|Gamer\)\).{3,}\\]'; }
-        if (filterule === '') { filterule = '!.*'; }
-        const danmakuFilteRule = new RegExp(filterule);
+        const dandanRegex = disableDandan ? /^(?!\[)|^.{0,3}\]/ : null;
+        const otherRegex = disableOther ? /^\[(?!(BiliBili|Gamer)).{3,}\]/ : null;
 
-        // 使用Map去重
-        const unique_cmts = [];
-        const cmtMap = new Map();
-        const removeUserRegex = /,[^,]+$/; //p: time,modeId,colorValue,user
-        all_cmts.forEach((comment) => {
-            const p = comment.p.replace(removeUserRegex, '');
-            if (!cmtMap.has(p + comment.m)) {
-                cmtMap.set(p + comment.m, true);
-                unique_cmts.push(comment);
+        // 模式过滤规则
+        let enabledModes = new Set([1, 4, 5, 6]);
+        if ((danmakuModeFilter & 1) === 1) enabledModes.delete(4); // bottom
+        if ((danmakuModeFilter & 2) === 2) enabledModes.delete(5); // top
+        if ((danmakuModeFilter & 4) === 4) { enabledModes.delete(1); enabledModes.delete(6); } // rtl & ltr
+
+        // 密度过滤参数
+        const shouldFilterDensity = danmakuDensityLimit > 0;
+        const duration = Math.ceil(containerWidth / speed);
+        const lines = Math.floor((containerHeight * heightRatio - 18) / fontSize) - 1;
+        const scrollLimit = (9 - danmakuDensityLimit * 2) * lines;
+        const verticalLimit = lines - 1 > 0 ? lines - 1 : 1;
+
+        // 初始化状态变量和结果数组
+        const uniqueMap = new Map();
+        const timeBuckets = {}; // 滚动弹幕计数桶
+        const verticalTimeBuckets = {}; // 顶部/底部弹幕计数桶
+        const resultComments = [];
+
+        for (const comment of all_cmts) {
+            // 去重
+            // p format: time,modeId,colorValue,user
+            const pWithoutUser = comment.p.substring(0, comment.p.lastIndexOf(','));
+            const uniqueKey = pWithoutUser + comment.m;
+            if (uniqueMap.has(uniqueKey)) {
+                continue;
             }
-        });
+            uniqueMap.set(uniqueKey, true);
 
-        let enabledMode = [1, 4, 5, 6];
-        if ((danmakuModeFilter & 1) === 1) { enabledMode = enabledMode.filter((v) => v !== 4); }
-        if ((danmakuModeFilter & 2) === 2) { enabledMode = enabledMode.filter((v) => v !== 5); }
-        if ((danmakuModeFilter & 4) === 4) { enabledMode = enabledMode.filter((v) => v !== 6 && v !== 1); }
+            // 解析数据
+            const parts = comment.p.split(',');
+            const time = parseFloat(parts[0]);
+            const modeId = parseInt(parts[1], 10);
+            const user = parts[3];
+            
+            // 来源过滤
+            if (
+                (disableBilibili && user.startsWith('[BiliBili]')) ||
+                (disableGamer && user.startsWith('[Gamer]')) ||
+                (dandanRegex && dandanRegex.test(user)) ||
+                (otherRegex && otherRegex.test(user))
+            ) {
+                continue;
+            }
 
-        return unique_cmts
-            .filter((comment) => {
-                const user = comment.p.split(',')[3];
-                const modeId = parseInt(comment.p.split(',')[1], 10);
-                return !danmakuFilteRule.test(user) && enabledMode.includes(modeId);
-            })
-            .map((comment) => {
-                const [time, modeId, colorValue] = comment.p.split(',').map((v, i) => i === 0 ? parseFloat(v) : parseInt(v, 10));
-                const mode = { 1: 'rtl', 4: 'bottom', 5: 'top', 6: 'ltr' }[modeId];
+            // 模式过滤
+            if (!enabledModes.has(modeId)) {
+                continue;
+            }
 
-                const color = colorValue.toString(16).padStart(6, '0');
-                return {
-                    text: comment.m,
-                    mode,
-                    time: time + curEpOffset,
-                    style: {
-                        font: `${fontOptions} ${fontSize}px ${fontFamily}`,
-                        fillStyle: `#${color}`,
-                        strokeStyle: color === '000000' ? '#fff' : '#000',
-                        lineWidth: 2.0,
-                    },
-                };
+            // 密度过滤
+            if (shouldFilterDensity) {
+                const timeIndex = Math.ceil(time / duration);
+                const isVertical = modeId === 4 || modeId === 5;
+
+                if (isVertical) {
+                    verticalTimeBuckets[timeIndex] = (verticalTimeBuckets[timeIndex] || 0) + 1;
+                    if (verticalTimeBuckets[timeIndex] > verticalLimit) {
+                        continue;
+                    }
+                } else {
+                    timeBuckets[timeIndex] = (timeBuckets[timeIndex] || 0) + 1;
+                    if (timeBuckets[timeIndex] > scrollLimit) {
+                        continue;
+                    }
+                }
+            }
+
+            // 格式转换
+            const mode = { 1: 'rtl', 4: 'bottom', 5: 'top', 6: 'ltr' }[modeId];
+            const colorValue = parseInt(parts[2], 10);
+            const color = colorValue.toString(16).padStart(6, '0');
+
+            resultComments.push({
+                text: comment.m,
+                mode,
+                time: time + curEpOffset,
+                style: {
+                    font: `${fontOptions} ${fontSize}px ${fontFamily}`,
+                    fillStyle: `#${color}`,
+                    strokeStyle: color === '000000' ? '#fff' : '#000',
+                    lineWidth: 2.0,
+                },
             });
+        }
+
+        return resultComments;
     }
 
     function list2string($obj2) {
