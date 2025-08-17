@@ -269,6 +269,12 @@
         }
     }
 
+    //判断火狐浏览器
+    function isFirefox() {
+        return navigator.userAgent.toLowerCase().includes('firefox');
+    }
+
+
     // 切换弹幕显示
     function danmuShowSwitch() {
         if (window.ede.loading) {
@@ -651,7 +657,7 @@
             input.focus();
             input.select();
 
-            input.addEventListener('keydown', event => event.stopPropagation(), true); 
+            input.addEventListener('keydown', event => event.stopPropagation(), true);
 
             const cleanup = () => {
                 document.body.removeChild(overlay);
@@ -1216,12 +1222,29 @@
             });
 
             const checkbox = danmakuSwitchItem.querySelector('input[type="checkbox"]');
-            let isUpdating = false;
+            const switchLabel = danmakuSwitchItem.querySelector('.modern-switch');
 
+            // 为checkbox添加change事件
             checkbox.addEventListener('change', function (e) {
                 e.stopPropagation();
                 danmuShowSwitch();
             });
+
+            // 为了修复Firefox兼容性问题，为label添加点击事件
+            if (isFirefox()) {
+                switchLabel.addEventListener('click', function (e) {
+                    // 防止点击事件冒泡到卡片
+                    e.stopPropagation();
+
+                    // 如果点击的不是checkbox本身，手动切换checkbox状态
+                    if (e.target !== checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        // 手动触发change事件
+                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
+
             controlItems.push(danmakuSwitchItem);
         }
 
@@ -1276,7 +1299,9 @@
             });
 
             const checkbox = logSwitchItem.querySelector('input[type="checkbox"]');
+            const switchLabel = logSwitchItem.querySelector('.modern-switch');
 
+            // 为checkbox添加change事件
             checkbox.addEventListener('change', function (e) {
                 e.stopPropagation();
                 if (window.ede.loading) {
@@ -1285,12 +1310,26 @@
                 }
                 window.ede.logSwitch = (window.ede.logSwitch + 1) % 2;
                 window.localStorage.setItem('logSwitch', window.ede.logSwitch);
-                // checkbox.checked = checkbox.checked ? false : true;
                 let logSpan = document.querySelector('#debugInfo');
                 if (logSpan) {
                     window.ede.logSwitch == 1 ? (logSpan.style.display = 'block') && showDebugInfo('开启日志显示') : (logSpan.style.display = 'none');
                 }
             });
+
+            // 为了修复Firefox兼容性问题，为label添加点击事件
+            if (isFirefox()) {
+                switchLabel.addEventListener('click', function (e) {
+                    // 防止点击事件冒泡到卡片
+                    e.stopPropagation();
+
+                    // 如果点击的不是checkbox本身，手动切换checkbox状态
+                    if (e.target !== checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                        // 手动触发change事件
+                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
             controlItems.push(logSwitchItem);
         }
 
@@ -1996,28 +2035,28 @@
         if (!is_auto) {
             let anime_lists_str = list2string(animaInfo);
             showDebugInfo(anime_lists_str);
-            
+
             // 创建选项数组供对话框使用
             const animeOptions = animaInfo.animes.map((anime) => {
                 return anime.animeTitle + ' 类型:' + anime.typeDescription;
             });
-            
+
             const selectedAnimeIndex = await createSelectDialog('选择节目', animeOptions, selecAnime_id - 1);
             if (selectedAnimeIndex === null) {
                 return null;
             }
             selecAnime_id = selectedAnimeIndex;
-            
+
             window.localStorage.setItem(_id_key, animaInfo.animes[selecAnime_id].animeId);
             window.localStorage.setItem(_name_key, animaInfo.animes[selecAnime_id].animeTitle);
-            
+
             let episode_lists_str = ep2string(animaInfo.animes[selecAnime_id].episodes);
-            
+
             // 创建剧集选项数组
             const episodeOptions = animaInfo.animes[selecAnime_id].episodes.map((ep) => {
                 return ep.episodeTitle;
             });
-            
+
             const selectedEpisodeIndex = await createSelectDialog('选择剧集', episodeOptions, (parseInt(episode) || 1) - 1);
             if (selectedEpisodeIndex === null) {
                 return null;
@@ -3182,7 +3221,21 @@
                     };
 
                     // 绑定事件
-                    checkbox.addEventListener('change', updateStyle);
+                    checkbox.addEventListener('change', function(e) {
+                        // Firefox兼容性：确保单选框组至少有一个保持选中状态
+                        if (isFirefox() && checkbox.type === 'radio' && checkbox.name) {
+                            const radioGroup = document.querySelectorAll(`input[type="radio"][name="${checkbox.name}"]`);
+                            const checkedCount = Array.from(radioGroup).filter(radio => radio.checked).length;
+                            
+                            // 如果当前单选框被取消选中，且这是组中唯一选中的，则阻止取消选中
+                            if (!checkbox.checked && checkedCount === 0) {
+                                e.preventDefault();
+                                checkbox.checked = true;
+                                return;
+                            }
+                        }
+                        updateStyle();
+                    });
 
                     // 父容器的鼠标事件
                     const hoverStyles = {
@@ -3238,17 +3291,39 @@
                     // 初始化样式
                     updateStyle();
 
-                    // 点击事件处理
+                    // 点击事件处理 - Firefox兼容性修复
                     parent.addEventListener('click', function (e) {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (isFirefox()) {
+                            if (e.target !== checkbox) {
+                                // Firefox兼容性：特殊处理单选框组
+                                if (checkbox.type === 'radio' && checkbox.name) {
+                                    const radioGroup = document.querySelectorAll(`input[type="radio"][name="${checkbox.name}"]`);
+                                    const checkedCount = Array.from(radioGroup).filter(radio => radio.checked).length;
+                                    
+                                    // 如果当前单选框已选中且是组中唯一选中的，则不允许取消选中
+                                    if (checkbox.checked && checkedCount === 1) {
+                                        return;
+                                    }
+                                }
+                                
+                                // Firefox兼容性：手动切换状态并触发事件
+                                checkbox.checked = !checkbox.checked;
 
-                        if (e.target !== checkbox) {
+                                // 手动触发change事件
+                                const changeEvent = new Event('change', {
+                                    bubbles: true,
+                                    cancelable: true
+                                });
+                                checkbox.dispatchEvent(changeEvent);
+                            }
+                        } else {
                             checkbox.click();
                         }
                     });
 
-                    // 确保复选框点击事件不被阻止
+                    // 确保复选框/单选框点击事件不会出发父元素的点击
                     checkbox.addEventListener('click', function (e) {
                         e.stopPropagation();
                     });
