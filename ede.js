@@ -502,6 +502,16 @@
             setupDanmakuSettings(settingsContainer);
         }, 100);
 
+        // 创建遮罩层，防止点击侧边栏外部时暂停视频
+        const backdrop = document.createElement('div');
+        backdrop.className = 'dialogBackdrop dialogBackdropOpened';
+        backdrop.id = 'danmakuSidebarBackdrop';
+        backdrop.style.cssText = `
+            z-index: 999999;
+        `;
+        
+        // 将遮罩和侧边栏都添加到body
+        document.body.appendChild(backdrop);
         document.body.appendChild(sidebar);
 
         // 添加样式
@@ -516,31 +526,29 @@
         document.addEventListener('keydown', handleEscape);
         sidebar._handleEscape = handleEscape;
 
-        // 点击外部关闭
-        const handleOutsideClick = (e) => {
-            // 如果点击的是侧边栏外部，才关闭侧边栏
-            if (sidebar && !sidebar.contains(e.target)) {
+        // 点击遮罩关闭侧边栏
+        const handleBackdropClick = (e) => {
+            // 只有点击遮罩本身时才关闭侧边栏
+            if (e.target === backdrop) {
                 closeDanmakuSidebar();
             }
         };
 
         setTimeout(() => {
-            document.addEventListener('click', handleOutsideClick);
-            sidebar._handleOutsideClick = handleOutsideClick;
+            backdrop.addEventListener('click', handleBackdropClick);
+            sidebar._handleBackdropClick = handleBackdropClick;
         }, 300);
 
         // 显示侧边栏
         setTimeout(() => {
             sidebar.style.transform = 'translateX(0)';
         }, 50);
-
-        // 隐藏原始按钮
-        // hideOriginalButtons();
     }
 
     // 关闭弹幕侧边栏
     function closeDanmakuSidebar() {
         const sidebar = document.getElementById('danmakuSidebar');
+        const backdrop = document.getElementById('danmakuSidebarBackdrop');
         if (!sidebar) return;
 
         sidebar.style.transform = 'translateX(100%)';
@@ -549,18 +557,16 @@
             document.removeEventListener('keydown', sidebar._handleEscape);
         }
 
-        if (sidebar._handleOutsideClick) {
-            document.removeEventListener('click', sidebar._handleOutsideClick);
+        if (sidebar._handleBackdropClick && backdrop) {
+            backdrop.removeEventListener('click', sidebar._handleBackdropClick);
         }
 
         setTimeout(() => {
             sidebar.parentNode?.removeChild(sidebar);
-            // 清理原始模态框
-            const originalModal = document.getElementById('danmakuModal');
-            if (originalModal) {
-                originalModal.remove();
+            // 同时移除遮罩层
+            if (backdrop && backdrop.parentNode) {
+                backdrop.parentNode.removeChild(backdrop);
             }
-            cleanupEmptyDialogContainers();
         }, 300);
     }
 
@@ -1536,23 +1542,9 @@
 
             // 添加点击事件
             danmakuMenuItem.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-
                 console.log('[Danmaku Settings] 弹幕设置菜单项被点击');
 
                 createDanmakuSidebar();
-
-                // 关闭设置菜单
-                setTimeout(() => {
-                    const backdrop = document.querySelector('.dialogBackdrop') ||
-                        document.querySelector('[data-history="true"]');
-                    if (backdrop && backdrop.contains(actionSheet)) {
-                        backdrop.click();
-                    } else {
-                        actionSheet.remove();
-                    }
-                }, 100);
             });
 
             // 将弹幕设置添加到循环模式之前，如果没有循环模式就添加到播放信息之前
@@ -1593,29 +1585,6 @@
             });
         });
     });
-
-    // 清理空白的对话框容器
-    function cleanupEmptyDialogContainers() {
-        const emptyContainers = document.querySelectorAll('.dialogContainer');
-        emptyContainers.forEach(container => {
-            // 检查容器是否为空或只包含空白内容
-            if (!container.innerHTML.trim() ||
-                (!container.querySelector('.dialog') && !container.querySelector('.actionSheet'))) {
-                console.log('[Danmaku Settings] 清理空白dialogContainer');
-                container.remove();
-            }
-        });
-
-        // 也清理可能残留的backdrop
-        const emptyBackdrops = document.querySelectorAll('.dialogBackdrop');
-        emptyBackdrops.forEach(backdrop => {
-            if (!backdrop.nextElementSibling ||
-                !backdrop.nextElementSibling.querySelector('.dialog, .actionSheet')) {
-                console.log('[Danmaku Settings] 清理空白dialogBackdrop');
-                backdrop.remove();
-            }
-        });
-    }
 
     observer.observe(document.body, { childList: true, subtree: true });
 
