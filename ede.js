@@ -2071,7 +2071,7 @@
         const { danmakuFilter } = window.ede;
         const url_all = apiPrefix + '/api/v2/comment/' + episodeId + '?withRelated=true&chConvert=' + window.ede.chConvert;
         const url_related = apiPrefix + '/api/v2/related/' + episodeId;
-        const url_ext = apiPrefix + '/api/v2/extcomment?url=';
+        const url_ext = apiPrefix + '/api/v2/extcomment?chConvert=' + window.ede.chConvert + '&url=';
         try {
             let response = await makeGetRequest(url_all);
             let data = await response.json();
@@ -2124,7 +2124,7 @@
 
     async function getCommentsByUrl(src) {
         const url_encoded = encodeURIComponent(src);
-        const url = apiPrefix + '/api/v2/extcomment?url=' + url_encoded;
+        const url = apiPrefix + '/api/v2/extcomment?chConvert=' + window.ede.chConvert + '&url=' + url_encoded;
         for (let i = 0; i < 2; i++) {
             try {
                 const response = await makeGetRequest(url);
@@ -2243,7 +2243,6 @@
                 _container = element;
             }
         });
-
         if (!_container) {
             showDebugInfo('未找到播放器');
             return;
@@ -2444,6 +2443,7 @@
         if ((danmakuModeFilter & 1) === 1) enabledModes.delete(4); // bottom
         if ((danmakuModeFilter & 2) === 2) enabledModes.delete(5); // top
         if ((danmakuModeFilter & 4) === 4) { enabledModes.delete(1); enabledModes.delete(6); } // rtl & ltr
+
         // 密度过滤参数
         const shouldFilterDensity = danmakuDensityLimit > 0;
         const duration = Math.ceil(containerWidth / speed);
@@ -2472,7 +2472,7 @@
             const time = parseFloat(parts[0]);
             const modeId = parseInt(parts[1], 10);
             const user = parts[3];
-
+            
             // 来源过滤
             if (
                 (disableBilibili && user.startsWith('[BiliBili]')) ||
@@ -2524,7 +2524,7 @@
             });
         }
 
-        return resultComments;
+        return filteredList;
     }
 
     const widthCache = new Map();
@@ -2578,16 +2578,18 @@
                 if (danmaku.time >= tracksReleaseTimes[i]) {
                     // 分配成功
                     filteredList.push(danmaku);
-
+                    
                     // 更新该轨道的下一次可用时间
                     tracksReleaseTimes[i] = danmaku.time + timeToEnter;
 
-                    break;
+                    break; 
                 }
             }
         }
+
         return filteredList;
     }
+
     function filterOverlappedFixedDanmaku(sortedFixedDanmaku, containerWidth, containerHeight) {
         const {
             speed,
