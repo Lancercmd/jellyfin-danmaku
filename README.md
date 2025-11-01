@@ -132,14 +132,12 @@ example.com {
 下载Caddy二进制文件时，增加模块[`caddyserver/replace-response`](https://github.com/caddyserver/replace-response)，之后，在`Caddyfile`中按如下内容修改
 
 ```Caddyfile
-# 全局设置
-{
-    order filter after encode
-}
-
 # 网站设置
 example.com {
-    replace {
+    replace /web/* {
+        match {
+            header Content-Type text/html*
+        }
         "</body>" "<script src=\"https://cdn.jsdelivr.net/gh/Izumiko/jellyfin-danmaku@gh-pages/ede.user.js\" defer></script></body>"
     }
     reverse_proxy localhost:8096 {
